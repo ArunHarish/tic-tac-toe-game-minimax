@@ -1,3 +1,13 @@
+* {
+    -webkit-user-select: none;
+    user-select: none;
+    -moz-user-select: none;
+}
+
+h1 {
+    margin : 15px;
+}
+
 div.board {
     display : flex;
     width : 500px;
@@ -13,25 +23,38 @@ div.board div.row {
 }
 
 div.board div.row.middle {
-    border-top : 1px solid #111;
-    border-bottom : 1px solid #111;
+    border-top : 5px solid #111;
+    border-bottom : 5px solid #111;
 }
 
 div.board div.row div.col.middle {
-    border-left : 1px solid #111;
-    border-right : 1px solid #111;
+    border-left : 5px solid #111;
+    border-right : 5px solid #111;
 }
 
 
 div.board div.row div.col {
     width : 33.33%;
     height : 100%;
+    display : flex;
+}
+
+div.board div.row div.col div.move {
+    flex : 1 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 200px;
+    cursor: default;
 }
 
 div.board div.row div.col:not(.empty):hover {
     background : #eee;
 }
 
+body {
+    background : #eee;
+}
 
 div#root {
     position: absolute;
@@ -54,6 +77,22 @@ div.menu {
     flex-direction: column;
     align-items: center;
     justify-content: center;
+    animation : fadeIn 500ms;
+    top : 0;
+    opacity: 1;
+    position: relative;
+}
+
+@keyframes fadeIn {
+    0% {
+        top : 100px;
+        opacity : 0;
+    }
+
+    100% {
+        top : 0;
+        opacity: 1;
+    }
 }
 
 div.menu div.title, div.gameDetails div.title, div.role-select div.title {
@@ -143,18 +182,95 @@ div.gameDetails div.options div:hover div.icon {
     font-size: 4em;
 }
 
+div.role-select {
+    display: flex;
+    width: 500px;
+    height: 500px;
+    text-align: center;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+div.role-select div.tiles {
+    display: flex;
+    flex-direction: row;
+    width: 75%;
+    height: 75%;
+    justify-content: space-around;
+    cursor: default;
+    flex-wrap: wrap;
+}
+
+div.role-select div.tiles div.roles {
+    width: 150px;
+    height: 150px;
+    padding: 5px;
+    display: flex;
+    align-items: stretch;
+    justify-content: center;
+    flex-direction: column;
+    margin: 5px;
+    border: 1px solid #aaa;
+    font-size: 3em;
+}
+
+div.role-select div.tiles div.roles {
+    transition : font-size 200ms, background 200ms, color 200ms, border 200ms;
+}
+
+div.role-select div.tiles div.roles.x {
+    color : red;
+    border: 2px solid red;
+}
+
+div.role-select div.tiles div.roles.x:hover {
+    background: rgba(255, 0, 0, 0.1);
+}
+
+div.role-select div.tiles div.roles.o {
+    color : green;
+    border: 2px solid green;
+}
+
+div.role-select div.tiles div.roles.o:hover {
+    background: rgba(0, 255, 0, 0.1);
+}
+
+div.role-select div.tiles div.roles:hover {
+    font-size: 4em;
+}
+
 @media only screen and (max-width : 440px) {
-    div.menu div.title, div.gameDetails div.title {
-        font-size : 1.5em;
+    div.role-select div.title, div.menu div.title, div.gameDetails div.title {
+        font-size : 1.4em;
     }
     div.menu div.options div {
-        font-size : 1.5em;
+        font-size : 1.4em;
     }
+}
+
+@media only screen and (max-height : 500px) {
+    div.board {
+        height : 75%;
+        width : 75vh;
+    }
+    div.board div.row div.col div.move {
+        font-size : 24vh;
+    }
+
+    div#root div.gameDetails, div#root div.role-select {
+        height : 100%;
+    }
+
 }
 
 @media only screen and (max-width : 500px) {
     div.board {
         width : 75%;
         height : 75vw;
+    }
+    div.board div.row div.col div.move {
+        font-size : 24vw;
     }
 }

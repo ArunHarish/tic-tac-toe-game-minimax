@@ -25,24 +25,152 @@ class BoardLoading extends React.Component {
     }
 }
 
+class BoardMove extends React.Component {
+    constructor(props) {
+        super(props);
+        this.state = {
+            move : this.props.type
+        }
+        this.MOVE_TYPE = this.props.options;
+    }
+
+    static getDerivedStateFromProps(nextProp, currentState) {
+        if (nextProp.type !== currentState.move) {
+            return {
+                move : nextProp.type
+            };
+        }
+
+        return null;
+    }
+
+    render() {
+        let value;
+        switch (this.state.move) {
+            case this.MOVE_TYPE._:
+                return <></>;
+            case this.MOVE_TYPE.O:
+                value = "O";
+            break;
+            case this.MOVE_TYPE.X:
+                value = "X";
+            break;
+        }
+        return (
+            <div className="move">{value}</div>
+        )
+    }
+}
+
 class Board extends React.Component {
+    constructor(props) {
+        super(props);
+        this.MOVE_TYPE = {
+            _ : -1,
+            X : 1,
+            O : 0
+        };
+        // this.state = {boardState : {}}
+        // [
+        //     [this.MOVE_TYPE._, this.MOVE_TYPE._, this.MOVE_TYPE._]
+        // ]
+
+        this.state = {
+            boardState : {
+                ff : this.MOVE_TYPE._,
+                fs : this.MOVE_TYPE._,
+                ft : this.MOVE_TYPE._,
+                sf : this.MOVE_TYPE._,
+                ss : this.MOVE_TYPE._,
+                st : this.MOVE_TYPE._,
+                tf : this.MOVE_TYPE._,
+                ts : this.MOVE_TYPE._,
+                tt : this.MOVE_TYPE._
+            }
+            ,
+            gameStatus : {
+                // defaults to no connection but sets to true if web-socket
+                // is connected
+                connected : false, 
+                won : false,
+                // if won then this must be non-null
+                result : null 
+            }
+        }
+    }
+
+    onUserTurn() {
+
+    }
+
+    onBoardMove() {
+
+    }
+
+    // Indicates game end
+    onGameEnd() {
+
+    }
+
+    componentDidMount() {
+        let pid = this.props.pid,
+            gid = this.props.gid,
+            playerType = this.props.playerType;
+    }
+
     render() {
         return (
             <div className="board">
                 <div className="row">
-                    <div className="col"></div>
-                    <div className="col middle"></div>
-                    <div className="col"></div>
+                    <div className="col" onClick={() => {
+                        this.setState(prevState => {
+                            // Copying board state to new object
+                            let boardState = Object.assign({}, prevState.boardState);
+                            boardState.ff = this.MOVE_TYPE.X; 
+                            return {
+                                boardState // Since boardState : boardState :D
+                            }
+                        });
+                    }}>
+                        <BoardMove options={this.MOVE_TYPE} 
+                            type={this.state.boardState.ff}></BoardMove>   
+                    </div>
+                    <div className="col middle">
+                        <BoardMove options={this.MOVE_TYPE} 
+                            type={this.state.boardState.fs}></BoardMove>
+                    </div>
+                    <div className="col">
+                        <BoardMove options={this.MOVE_TYPE} 
+                            type={this.state.boardState.ft}></BoardMove>
+                    </div>
                 </div>
                 <div className="row middle">
-                    <div className="col"></div>
-                    <div className="col middle"></div>
-                    <div className="col"></div>
+                    <div className="col">
+                        <BoardMove options={this.MOVE_TYPE} 
+                            type={this.state.boardState.sf}></BoardMove>
+                    </div>
+                    <div className="col middle">
+                        <BoardMove options={this.MOVE_TYPE} 
+                            type={this.state.boardState.ss}></BoardMove>
+                    </div>
+                    <div className="col">
+                        <BoardMove options={this.MOVE_TYPE} 
+                            type={this.state.boardState.st}></BoardMove>
+                    </div>
                 </div>
                 <div className="row">
-                    <div className="col"></div>
-                    <div className="col middle"></div>
-                    <div className="col"></div>
+                    <div className="col">
+                        <BoardMove options={this.MOVE_TYPE} 
+                            type={this.state.boardState.tf}></BoardMove>
+                    </div>
+                    <div className="col middle">
+                        <BoardMove options={this.MOVE_TYPE} 
+                            type={this.state.boardState.ts}></BoardMove>
+                    </div>
+                    <div className="col">
+                        <BoardMove options={this.MOVE_TYPE} 
+                            type={this.state.boardState.tt}></BoardMove>
+                    </div>
                 </div>
             </div>
         )
@@ -157,21 +285,45 @@ class MainMenu extends React.Component {
                 <Route exact path="/new/ai">
                     <Game></Game>
                 </Route>
+                <Route exact path="/play/ai/:gid">
+                    
+                </Route>
             </Router>
         )
     }
 }
 
+
 class RoleSelect extends React.Component {
+    constructor(props) {
+        super(props);
+        // Binding
+        this.onSelect = this.onSelect.bind(this);
+        // References
+        this.x = React.createRef();
+        this.o = React.createRef();
+    }
+
+    onSelect(event) {
+        let target = event.currentTarget;
+        if (this.x.current == target) {
+            // For X player type
+            this.props.onSelect(this.props.options.X);
+        } else if (this.o.current == target) {
+            // For O player type
+            this.props.onSelect(this.props.options.O);
+        }
+    }
+
     render() {
         return (
             <div className="role-select">
                 <div className="title">
-                    <h1>ROLE SELECT</h1>
+                    <h1>PLAYER TYPE</h1>
                 </div>
                 <div className="tiles">
-                    <div>X</div>
-                    <div>O</div>
+                    <div className="roles x" ref={this.x} onClick={this.onSelect}>X</div>
+                    <div className="roles o" ref={this.o} onClick={this.onSelect}>O</div>
                 </div>
             </div>
         )
@@ -189,56 +341,79 @@ class Game extends React.Component {
         this.state = {
             SHOW_STATE : this.showStates.LOADING 
         };
+        // Player type enum
+        this.PLAYER_TYPE = {
+            X : 0,
+            O : 1
+        };
+        // Setting game details
+        this.gid = null;
+        this.pid = null;
+        this.playerType = null;
+        // Setting socket.io connection 
+        this.connection = null;
+        // Bindings
+        this.onRoleSelect = this.onRoleSelect.bind(this);
+    }
+
+    componentWillUnmount() {
+        if (this.connection) {
+            this.connection.disconnect();
+        }
     }
 
     async componentDidMount() {
-        let details = (await axios.get("/api/game/ai")).data;
-        // Once here get the details and send it as part of initialisation
-        // process
+        let details = (await axios.post("/api/game/ai")).data;
         if (details.ai) {
-            let connection = io();
-            let error = false;
-        
-            connection.emit("request::ai", {
-                player : details.pid,
-                game : details.gid
+            this.setState({
+                SHOW_STATE : this.showStates.ROLESELECT
             });
-
-            connection.on("request::role", () => {
-                // Set the state to be asking for role
-                this.setState({
-                    SHOW_STATE : this.showStates.ROLESELECT
-                })
-            });
-
-            connection.on("error", () => {
-                error = true;    
-            });
-
-            connection.on("disconnect", () => {
-                if (!error)
-                    alert("Server connection has been disconnected. Game state will be removed.")
-                else
-                    alert("Invalid credentials provided");
-                
-                connection.disconnect();
-            })
-            
+            this.gameID = details.gid;
+            this.playerID = details.pid;
         }
-        
+    }
+
+    async onRoleSelect(type) {
+        if (this.PLAYER_TYPE.X === type || this.PLAYER_TYPE.O === type) {
+            this.playerType = type;
+            try {
+                // Only if correct player type is provided
+                // send request with game id and player type and id
+                let response = (await axios.post("/api/game/ai/player/", {
+                    data : JSON.stringify({
+                        "playerType" : this.playerType,
+                        "gid" : this.gameID,
+                        "pid" : this.playerID
+                    }),
+                    headers : {
+                        "Content-Type" : "application/json"
+                    }
+                })).data;
+
+                if (response.valid) {
+                    // Show the game content
+                    this.setState({
+                        SHOW_STATE : this.showStates.GAMEINIT
+                    });
+                }
+
+            } catch {
+                // Do things required to indicate game error
+            }
+        }
     }
 
     render() {
-        let content = <Board></Board>;
+        let content;
         switch (this.state.SHOW_STATE) {
             case this.showStates.LOADING:
                 content = <BoardLoading></BoardLoading>;
                 break;
             case this.showStates.ROLESELECT:
-                content = <RoleSelect></RoleSelect>;
+                content = <RoleSelect onSelect={this.onRoleSelect} options={this.PLAYER_TYPE}></RoleSelect>;
                 break;
-            default:
-                content = <Board></Board>;
+            case this.showStates.GAMEINIT:
+                content = <Board ai={true} gid={this.gameID} pid={this.playerID} playerType={this.playerType} ></Board>;
                 break;
         }
         return content;

@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify, send_from_directory
 from flask_socketio import SocketIO, disconnect
 from uuid import uuid4
 from enum import Enum
-
+from json import loads as dictise
 import os
 
 # Player Types
@@ -45,7 +45,7 @@ def lookupGame(element, player):
         return None
     return game
 
-def clearGame(sessionID):
+def clearSessionGame(sessionID):
     if not sessionID in sessionGameTable:
         return False
     # Get the mapping from session ID to game ID
@@ -54,7 +54,12 @@ def clearGame(sessionID):
     del gameTable[gameID]
     # Remove the record of session ID
     del sessionGameTable[sessionID]
-    print("Cleared Game")
+    return True
+
+def clearGame(gameID):
+    if not (gameID in gameTable):
+        return False
+    del gameTable[gameID]
     return True
 
 def handle_internal_error(error):
@@ -73,6 +78,14 @@ def setSID(gameID, playerID, sessionID):
     sessionGameTable[sessionID] = gameID
     return True
 
+def setAIGameState(gameID, playerID, playerType):
+    if gameTable[gameID]["full"]:
+        return False
+
+    gameTable[gameID]["full"] = True
+    gameTable[gameID]["player"][playerID] = playerType
+    return True
+
 @app.route("/", methods=["GET"])
 def serve_react_content():
     return send_from_directory("./static-src/build/", "index.html")
@@ -89,7 +102,8 @@ def join():
 
     })
 
-@app.route("/api/game/ai", methods=["GET"])
+
+@app.route("/api/game/ai", methods=["POST"])
 def game_ai():
     gameID = uuid4()
     playerID = uuid4()
@@ -99,6 +113,32 @@ def game_ai():
         "gid" : str(gameID),
         "pid" : str(playerID)
     })
+
+@app.route("/api/game/ai/player/", methods=["POST"])
+def gain_permission():
+    params = request.get_json()
+    data = params["data"]
+    try:
+        if data:
+            data = dictise(data)
+        else:
+            raise "Invalid data given"
+        gid = data["gid"]
+        playerType = data["playerType"]
+        pid = data["pid"]
+
+        assert(playerType is 0 or playerType is 1)
+        assert(gameExists(gid, pid))
+        assert(setAIGameState(gid, pid, playerType))
+    except AssertionError:
+        # Delete the game, violates the internal game state
+        clearGame(gid)
+        return jsonify({"valid" : False}), 406
+    except:
+        clearGame(gid)
+        return jsonify({"valid" : False}), 400
+    
+    return jsonify({"valid" : True}), 200
 
 @app.route("/api/game/human", methods=["GET"])
 def game_human():
