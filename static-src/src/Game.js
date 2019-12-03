@@ -65,15 +65,17 @@ class BoardMove extends React.Component {
 class Board extends React.Component {
     constructor(props) {
         super(props);
+        // Enum MOVE
         this.MOVE_TYPE = {
             _ : -1,
-            X : 1,
-            O : 0
+            X : 0,
+            O : 1
         };
-        // this.state = {boardState : {}}
-        // [
-        //     [this.MOVE_TYPE._, this.MOVE_TYPE._, this.MOVE_TYPE._]
-        // ]
+        // Enum PLAYER
+        this.TURN = {
+            OTHER : 0,
+            THIS : 1
+        }
 
         this.state = {
             boardState : {
@@ -86,25 +88,95 @@ class Board extends React.Component {
                 tf : this.MOVE_TYPE._,
                 ts : this.MOVE_TYPE._,
                 tt : this.MOVE_TYPE._
-            }
-            ,
+            },
             gameStatus : {
                 // defaults to no connection but sets to true if web-socket
                 // is connected
                 connected : false, 
-                won : false,
-                // if won then this must be non-null
-                result : null 
+                won : {
+                    status : false,
+                    result : null
+                },
+                turn : null,
             }
+        }
+
+        // Bindings
+        this.onUserMove = this.onUserMove.bind(this);
+        this.onGameMove = this.onGameMove.bind(this);
+        this.onGameEnd = this.onGameEnd.bind(this);
+    }
+
+    async componentDidMount() {
+        // Send information to the server about this game
+        // Server responds pid and gid
+        try {
+
+            let response = (await (axios.post("/api/game/ai", {
+                data : JSON.stringify({
+                    "playerType" : this.props.playerType
+                })
+            }))).data;
+
+            if(response.ai && response.valid) {
+                // Confirmation that right details are sent
+                // Set player id and game id
+                this.pid = response.pid;
+                this.gid = response.gid;
+                this.playerType = response.playerType;
+            }
+            
+        } catch (error) {
+            // Things to do if there are issues while fetching details
+            
+        }
+        // Start game process by invoking socket connection with credentials
+        this.socket = io();
+        this.socket.emit("request::ai", {            
+            game : this.gid,
+            player : this.pid,
+            playerType : this.playerType
+        });
+
+        this.socket.on("player::move", this.onGameMove);
+        this.socket.on("game::end", this.onGameEnd);
+
+    }
+
+    onUserMove(event) {
+        let element = event.currentTarget;
+        let index = element.getAttribute("data-location");
+        let rowIndex = index[0],
+            colIndex = index[1];
+
+        let possibleMoves = {"f":0,"s":1,"t":2};
+        if (colIndex in possibleMoves && rowIndex in possibleMoves && 
+                this.state.boardState[index] === this.MOVE_TYPE._ &&
+                this.state.gameStatus.turn === this.TURN.THIS) {
+            // Logic to register user move
+            let row = possibleMoves[rowIndex],
+                col = possibleMoves[colIndex];
+                
+            this.socket.emit("player::move", {
+                "myMove" : [row, col],
+                "pid" : this.pid,
+                "gid" : this.gid
+            });
         }
     }
 
-    onUserTurn() {
-
-    }
-
-    onBoardMove() {
-
+    onGameMove(data) {
+        if (data.requestMove) {
+            let gameStatus = Object.assign({}, this.state.gameStatus);
+            gameStatus.turn = this.TURN.THIS;
+            this.setState({
+                gameStatus
+            });
+        } else if (data.responseMove) {
+            console.log(data.myMove);
+        } else if (data.updateMove) {
+            console.log(data.deltaState)
+        }
     }
 
     // Indicates game end
@@ -112,62 +184,47 @@ class Board extends React.Component {
 
     }
 
-    componentDidMount() {
-        let pid = this.props.pid,
-            gid = this.props.gid,
-            playerType = this.props.playerType;
-    }
-
     render() {
         return (
             <div className="board">
                 <div className="row">
-                    <div className="col" onClick={() => {
-                        this.setState(prevState => {
-                            // Copying board state to new object
-                            let boardState = Object.assign({}, prevState.boardState);
-                            boardState.ff = this.MOVE_TYPE.X; 
-                            return {
-                                boardState // Since boardState : boardState :D
-                            }
-                        });
-                    }}>
+                    <div className="col" data-location={"ff"} onClick={this.onUserMove}>
                         <BoardMove options={this.MOVE_TYPE} 
                             type={this.state.boardState.ff}></BoardMove>   
                     </div>
-                    <div className="col middle">
+                    <div className="col middle" data-location={"fs"} onClick={this.onUserMove}>
                         <BoardMove options={this.MOVE_TYPE} 
                             type={this.state.boardState.fs}></BoardMove>
                     </div>
-                    <div className="col">
+                    <div className="col" data-location={"ft"} onClick={this.onUserMove}>
                         <BoardMove options={this.MOVE_TYPE} 
                             type={this.state.boardState.ft}></BoardMove>
                     </div>
                 </div>
                 <div className="row middle">
-                    <div className="col">
+                    <div className="col" data-location={"sf"} onClick={this.onUserMove}>
                         <BoardMove options={this.MOVE_TYPE} 
                             type={this.state.boardState.sf}></BoardMove>
                     </div>
-                    <div className="col middle">
+                    <div className="col middle" data-location={"ss"} onClick={this.onUserMove}>
                         <BoardMove options={this.MOVE_TYPE} 
                             type={this.state.boardState.ss}></BoardMove>
                     </div>
-                    <div className="col">
+                    <div className="col" data-location={"st"} onClick={this.onUserMove}>
                         <BoardMove options={this.MOVE_TYPE} 
                             type={this.state.boardState.st}></BoardMove>
                     </div>
                 </div>
                 <div className="row">
-                    <div className="col">
+                    <div className="col" data-location={"tf"} onClick={this.onUserMove}>
                         <BoardMove options={this.MOVE_TYPE} 
                             type={this.state.boardState.tf}></BoardMove>
                     </div>
-                    <div className="col middle">
+                    <div className="col middle" data-location={"ts"} onClick={this.onUserMove}>
                         <BoardMove options={this.MOVE_TYPE} 
                             type={this.state.boardState.ts}></BoardMove>
                     </div>
-                    <div className="col">
+                    <div className="col" data-location={"tt"} onClick={this.onUserMove}>
                         <BoardMove options={this.MOVE_TYPE} 
                             type={this.state.boardState.tt}></BoardMove>
                     </div>
@@ -280,13 +337,10 @@ class MainMenu extends React.Component {
                     <GameOptionMenu></GameOptionMenu>   
                 </Route>
                 <Route exact path="/new/human">
-                    <FetchName></FetchName>
-                </Route>
-                <Route exact path="/new/ai">
                     <Game></Game>
                 </Route>
-                <Route exact path="/play/ai/:gid">
-                    
+                <Route exact path="/new/ai">
+                    <Game ai></Game>
                 </Route>
             </Router>
         )
@@ -336,70 +390,43 @@ class Game extends React.Component {
         this.showStates = {
             LOADING : 0,
             ROLESELECT : 1,
-            GAMEINIT : 2
+            HUMANNAME : 2,
+            GAMEINIT : 3
         }
         this.state = {
-            SHOW_STATE : this.showStates.LOADING 
+            SHOW_STATE : this.showStates.LOADING,
         };
         // Player type enum
         this.PLAYER_TYPE = {
             X : 0,
             O : 1
         };
-        // Setting game details
-        this.gid = null;
-        this.pid = null;
         this.playerType = null;
-        // Setting socket.io connection 
-        this.connection = null;
         // Bindings
         this.onRoleSelect = this.onRoleSelect.bind(this);
     }
 
-    componentWillUnmount() {
-        if (this.connection) {
-            this.connection.disconnect();
-        }
-    }
-
-    async componentDidMount() {
-        let details = (await axios.post("/api/game/ai")).data;
-        if (details.ai) {
+    componentDidMount() {
+        if (this.props.ai) {
+            // If AI then no need for name and invitation code
             this.setState({
                 SHOW_STATE : this.showStates.ROLESELECT
-            });
-            this.gameID = details.gid;
-            this.playerID = details.pid;
+            })
+        } else {
+            // Else if human the other person might need the 
+            // this person's name and invitation code
+            this.setState({
+                SHOW_STATE : this.showStates.HUMANNAME
+            })
         }
     }
 
     async onRoleSelect(type) {
         if (this.PLAYER_TYPE.X === type || this.PLAYER_TYPE.O === type) {
             this.playerType = type;
-            try {
-                // Only if correct player type is provided
-                // send request with game id and player type and id
-                let response = (await axios.post("/api/game/ai/player/", {
-                    data : JSON.stringify({
-                        "playerType" : this.playerType,
-                        "gid" : this.gameID,
-                        "pid" : this.playerID
-                    }),
-                    headers : {
-                        "Content-Type" : "application/json"
-                    }
-                })).data;
-
-                if (response.valid) {
-                    // Show the game content
-                    this.setState({
-                        SHOW_STATE : this.showStates.GAMEINIT
-                    });
-                }
-
-            } catch {
-                // Do things required to indicate game error
-            }
+            this.setState({
+                SHOW_STATE : this.showStates.GAMEINIT
+            })
         }
     }
 
@@ -413,7 +440,10 @@ class Game extends React.Component {
                 content = <RoleSelect onSelect={this.onRoleSelect} options={this.PLAYER_TYPE}></RoleSelect>;
                 break;
             case this.showStates.GAMEINIT:
-                content = <Board ai={true} gid={this.gameID} pid={this.playerID} playerType={this.playerType} ></Board>;
+                content = <Board ai={this.props.ai} playerType={this.playerType} options={this.PLAYER_TYPE} ></Board>;
+                break;
+            case this.showStates.HUMANNAME:
+                content = <FetchName></FetchName>;
                 break;
         }
         return content;
