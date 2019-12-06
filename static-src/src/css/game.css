@@ -241,7 +241,7 @@ div.role-select div.tiles div.roles:hover {
     font-size: 4em;
 }
 
-@media only screen and (max-width : 440px) {
+@media only screen and (max-width : 465px) {
     div.role-select div.title, div.menu div.title, div.gameDetails div.title {
         font-size : 1.4em;
     }

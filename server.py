@@ -6,7 +6,7 @@ from json import loads as dictise
 from math import inf
 from copy import deepcopy
 
-import os
+import os, signal
 
 # Player Types
 class PlayerType(Enum):
@@ -40,7 +40,7 @@ class TicTacToeTreeNode(object):
     def getChild(self, index : int):
         return self.child[index]
     
-    def getChildLength(self) -> int:
+    def getChildrenLength(self) -> int:
         return len(self.child)
     
     # For debugging purpose
@@ -66,7 +66,7 @@ class TicTacToeTree(object):
     
     @staticmethod
     def minimax(currentNode : TicTacToeTreeNode, depth : int, maximiser: bool):
-        if currentNode.getChildLength() is 0:
+        if currentNode.getChildrenLength() is 0:
             return 0, None, depth
         
         nodeValue = currentNode.getValue()["minmax"]
@@ -77,7 +77,7 @@ class TicTacToeTree(object):
         selectedNode = currentNode.getChild(0)
         if maximiser:
             maxNode = currentNode.getChild(0)
-            totalChildren = currentNode.getChildLength()
+            totalChildren = currentNode.getChildrenLength()
             maxValue = -inf # Initially negative
             for index in range(totalChildren):
                 selectedNode = currentNode.getChild(index)
@@ -89,7 +89,7 @@ class TicTacToeTree(object):
             return maxValue, maxNode, depth
         
         # Now it is the minimiser's turn
-        totalChildren = currentNode.getChildLength()
+        totalChildren = currentNode.getChildrenLength()
         minValue = inf
         minNode = currentNode.getChild(0)
         for index in range(totalChildren):
@@ -216,7 +216,28 @@ class TicTacToeTree(object):
 
     def find_user_move(self, currentNode : TicTacToeTreeNode, currentDepth : int,\
         turn : PlayerType, move):
-        pass
+        # Check whether the current state has an empty spot in the position
+        # defined in move to check whether it is valid
+        currentValue = currentNode.getValue()
+        currentState = currentValue["state"]
+        emptyRow, emptyCol = move
+
+        if not currentState[emptyRow][emptyCol] is PlayerType._:
+            return None
+        
+        # Find the child that has this player type placed in the position 
+        # defined in move
+        totalChildren = currentNode.getChildrenLength()
+        nextNode = None
+        for childIndex in range(totalChildren):
+            child = currentNode.getChild(childIndex)
+            childValue = child.getValue()["state"]
+            
+            if childValue[emptyRow][emptyCol] is turn:
+                nextNode = child
+                break
+
+        return nextNode
 
 # Game Hash Table
 gameTable = {}
@@ -315,6 +336,33 @@ def print_game(gameArray):
         third = temp_string(gameRow[2])
         print("{} | {} | {}".format(first, second, third))
 
+def change_turn(game):
+    currentTurn = game["turn"]
+    game["turn"] = Turn.OTHER if currentTurn is Turn.THIS else Turn.THIS
+
+def validate_move(game, pid, nextMove):
+    try:
+        currentNode = game["board"]["node"]
+        currentDepth = game["board"]["depth"]
+        currentTurn = game["player"][pid]
+
+        nextNode = tree.find_user_move(currentNode, currentDepth, currentTurn, \
+            nextMove)
+
+        assert(nextNode is not None)
+
+        # Update the board node
+        game["board"]["node"] = nextNode
+        # Return the node value
+        nextBoardState = nextNode.getValue()["state"]
+
+        return nextBoardState
+    except:
+        print("Next Node was None")
+    
+    return None
+    
+
 def set_next_move(game):
     currentNode = game["board"]["node"]
     currentDepth = game["board"]["depth"]
@@ -364,8 +412,7 @@ def game_logic(sid):
             "responseMove" : True,
             "boardState" : boardJSON # Board placement
         }, room=sid)
-        # Setting current turn
-        game["turn"] = Turn.OTHER
+        change_turn(game)
         # Going further
         game_logic(sid)
     # Else broadcast to other human player to make a move
@@ -458,21 +505,31 @@ def player_move(message):
         
         assert(sid in sessionGameTable)
 
-        gid = sessionGameTable[sid]
         gameID = message["gid"]
         playerID = message["pid"]
         # whether given credentials are proper
-        assert(game_exists(gameID, playerID) and gid == gameID)
+        assert(game_exists(gameID, playerID) and \
+                sessionGameTable[sid] == gameID)
+        
+        game = gameTable[gameID]
+        move = message["myMove"]
+        boardState = validate_move(game, playerID, move)
         # If valid emit player::move to client
-        if True:
+        
+        if boardState is not None:
+            boardJSON = board_json(boardState)
             socketio.emit("player::move", {
                 "updateMove" : True,
-                "boardState" : [1, 1]
+                "boardState" : boardJSON
             }, room=sid)
-        # Else ignore
+            # Change turn
+            change_turn(game)
+            # Advancing the game
+            game_logic(sid)
+    # Else ignore
     except:
+        print("Game does not exist or the given game id does not match")
         disconnect(sid=request.sid)
-        return None
         
 @socketio.on("request::ai")
 def handle_request_ai(message):
@@ -492,6 +549,6 @@ def handle_request_ai(message):
 
 if __name__ == '__main__':
     # Build game tree
-    print("\033[0;32mDone Building, starting server...\033[1;30m")
+    print("\033[0;32mDone Building, starting server...\033[1;30m")    
     # Start the server
     socketio.run(app)

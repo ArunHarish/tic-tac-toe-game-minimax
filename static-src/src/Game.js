@@ -186,7 +186,8 @@ class Board extends React.Component {
             this.updateBoard(boardState);
 
         } else if (data.updateMove) {
-            console.log(data.deltaState)
+            let boardState = data.boardState;
+            this.updateBoard(boardState);
         }
     }
 
