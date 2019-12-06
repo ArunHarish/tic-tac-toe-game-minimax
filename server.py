@@ -8,13 +8,6 @@ from copy import deepcopy
 
 import os
 
-
-# Placement Types
-class BoardValueType(Enum):
-    _=-1,
-    X=0,
-    O=1
-
 # Player Types
 class PlayerType(Enum):
     _=-1
@@ -47,7 +40,7 @@ class TicTacToeTreeNode(object):
     def getChild(self, index : int):
         return self.child[index]
     
-    def getChildrenLength(self) -> int:
+    def getChildLength(self) -> int:
         return len(self.child)
     
     # For debugging purpose
@@ -55,9 +48,7 @@ class TicTacToeTreeNode(object):
         value = self.value
         return "{}".format(value)
 
-class TicTacToeTree(object):
-    def __init__(self, value):
-        self.root = rootNode
+class TicTacToeTree(object):    
     @staticmethod
     def initialise() -> TicTacToeTreeNode:
         returnSet = []
@@ -72,8 +63,46 @@ class TicTacToeTree(object):
             "minmax" : 0
         }
         return TicTacToeTreeNode(startState)
+    
+    @staticmethod
+    def minimax(currentNode : TicTacToeTreeNode, depth : int, maximiser: bool):
+        if currentNode.getChildLength() is 0:
+            return 0, None, depth
+        
+        nodeValue = currentNode.getValue()["minmax"]
 
-    def build(self):
+        if nodeValue is not 0:
+            return nodeValue, currentNode, depth
+        
+        selectedNode = currentNode.getChild(0)
+        if maximiser:
+            maxNode = currentNode.getChild(0)
+            totalChildren = currentNode.getChildLength()
+            maxValue = -inf # Initially negative
+            for index in range(totalChildren):
+                selectedNode = currentNode.getChild(index)
+                value, nextNode, terminalDepth = TicTacToeTree.minimax(selectedNode, depth + 1, \
+                    False)
+                if value > maxValue:
+                    maxValue = value
+                    maxNode = selectedNode
+            return maxValue, maxNode, depth
+        
+        # Now it is the minimiser's turn
+        totalChildren = currentNode.getChildLength()
+        minValue = inf
+        minNode = currentNode.getChild(0)
+        for index in range(totalChildren):
+            selectedNode = currentNode.getChild(index)
+            value, nextNode, terminalDepth = TicTacToeTree.minimax(selectedNode, depth + 1, \
+                True)
+            if value < minValue:
+                minValue = value
+                minNode = selectedNode
+        return minValue, minNode, depth
+
+    def __init__(self, value):
+        self.root = value
         def horizontal_check(gameArray, currentPlayer : PlayerType):
             # Horizontal Check
             for row in range(3):
@@ -170,10 +199,32 @@ class TicTacToeTree(object):
         
         rootNode = self.root
         build_tree(PlayerType.X, rootNode, 0)
+    
+    def get_root(self):
+        return self.root
+
+    def find_ai_move(self, currentNode : TicTacToeTreeNode, currentDepth : int, \
+        turn : PlayerType):        
+        maximiser = False
+
+        if turn is PlayerType.X:
+            maximiser = True
+
+        value, nextNode, nextDepth = TicTacToeTree.minimax(currentNode, \
+            currentDepth, maximiser)
+        return nextNode, nextDepth    
+
+    def find_user_move(self, currentNode : TicTacToeTreeNode, currentDepth : int,\
+        turn : PlayerType, move):
+        pass
 
 # Game Hash Table
 gameTable = {}
 sessionGameTable = {}
+# Tree variable comes here
+print("\033[1;31mBuilding Game Tree...")
+rootNode = TicTacToeTree.initialise()
+tree = TicTacToeTree(rootNode)
 CURRENT_DIR = os.path.dirname(os.path.realpath(__file__))
 STATIC_FOLDER = os.path.join(CURRENT_DIR, "static-src", "build", "static")
 
@@ -192,18 +243,22 @@ def insert_game(element, player, playerType : PlayerType, gameType : GameType):
 
     gameTable[element] = {
         "player" : {
-            player : playerType
+            player : playerType,
         },
-        "board" : [
-            [BoardValueType._] * 3,
-            [BoardValueType._] * 3,
-            [BoardValueType._] * 3
-        ],
+        "board" : {
+            "node" : tree.get_root(),
+            "depth" : 0
+        },
         "type" : gameType,
         "ended" : False,
         "turn" : turn 
     }
 
+    # If AI then record it's Player Type
+    if gameType is GameType.AI:
+        gameTable[element]["player"]["ai"] = \
+            PlayerType.O if playerType is PlayerType.X else PlayerType.X
+    
     return element
 
 def game_exists(element, playerID):
@@ -244,6 +299,55 @@ def set_sid(gameID, playerID, sessionID):
     sessionGameTable[sessionID] = gameID
     return True
 
+def temp_string(value):
+    string = "X"
+    if value is PlayerType.O:
+        string = "O"
+    elif value is PlayerType._:
+        string = "*"
+    return string
+
+def print_game(gameArray):
+    for rows in range(0, 3):
+        gameRow = gameArray[rows]
+        first = temp_string(gameRow[0])
+        second = temp_string(gameRow[1])
+        third = temp_string(gameRow[2])
+        print("{} | {} | {}".format(first, second, third))
+
+def set_next_move(game):
+    currentNode = game["board"]["node"]
+    currentDepth = game["board"]["depth"]
+    playerType = game["player"]["ai"]
+
+    nextNode, nextDepth = tree.find_ai_move(currentNode, currentDepth, \
+        playerType)
+
+    # Set the nextNode and depth
+    game["board"]["node"] = nextNode
+    game["board"]["depth"] = nextDepth
+
+    # Get the board state
+    boardState = nextNode.getValue()["state"]
+
+    return boardState
+
+
+def board_json(boardState):
+    returnArray = []
+    for rows in range(3):
+        colsArray = []
+        for cols in range(3):
+            playerType = boardState[rows][cols] 
+            if playerType is PlayerType.O:
+                colsArray.append(1)
+            elif playerType is PlayerType.X:
+                colsArray.append(0)
+            else:
+                colsArray.append(-1)
+        returnArray.append(colsArray)
+    return returnArray
+
 def game_logic(sid):
     if not sid in sessionGameTable:
         return False
@@ -252,10 +356,13 @@ def game_logic(sid):
     game = gameTable[gid]
     currentTurn = game["turn"]
     # If it is AI's turn make decision and broadcast
-    if currentTurn is Turn.THIS:
+    if currentTurn is Turn.THIS: 
+        boardState = set_next_move(game)
+        boardJSON = board_json(boardState)
+        # Emit the move
         socketio.emit("player::move", {\
             "responseMove" : True,
-            "myMove" : [1,1] # Board placement
+            "boardState" : boardJSON # Board placement
         }, room=sid)
         # Setting current turn
         game["turn"] = Turn.OTHER
@@ -360,7 +467,7 @@ def player_move(message):
         if True:
             socketio.emit("player::move", {
                 "updateMove" : True,
-                "deltaState" : [1, 1]
+                "boardState" : [1, 1]
             }, room=sid)
         # Else ignore
     except:
@@ -385,10 +492,6 @@ def handle_request_ai(message):
 
 if __name__ == '__main__':
     # Build game tree
-    print("\033[1;31mBuilding Game Tree...")
-    rootNode = TicTacToeTree.initialise()
-    tree = TicTacToeTree(rootNode)
-    tree.build()
-    print("\033[0;32mDone Building starting server...")
+    print("\033[0;32mDone Building, starting server...\033[1;30m")
     # Start the server
     socketio.run(app)

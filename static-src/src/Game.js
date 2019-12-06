@@ -65,6 +65,7 @@ class BoardMove extends React.Component {
 class Board extends React.Component {
     constructor(props) {
         super(props);
+        // Properties
         // Enum MOVE
         this.MOVE_TYPE = {
             _ : -1,
@@ -76,6 +77,14 @@ class Board extends React.Component {
             OTHER : 0,
             THIS : 1
         }
+
+        this.possibleMoves = {
+            "f" : 0,
+            "s" : 1,
+            "t" : 2
+        }
+
+        this.possibleMoveArray = ["f", "s", "t"];
 
         this.state = {
             boardState : {
@@ -105,6 +114,7 @@ class Board extends React.Component {
         this.onUserMove = this.onUserMove.bind(this);
         this.onGameMove = this.onGameMove.bind(this);
         this.onGameEnd = this.onGameEnd.bind(this);
+        this.updateBoard = this.updateBoard.bind(this);
     }
 
     async componentDidMount() {
@@ -149,13 +159,12 @@ class Board extends React.Component {
         let rowIndex = index[0],
             colIndex = index[1];
 
-        let possibleMoves = {"f":0,"s":1,"t":2};
-        if (colIndex in possibleMoves && rowIndex in possibleMoves && 
+        if (colIndex in this.possibleMoves && rowIndex in this.possibleMoves && 
                 this.state.boardState[index] === this.MOVE_TYPE._ &&
                 this.state.gameStatus.turn === this.TURN.THIS) {
             // Logic to register user move
-            let row = possibleMoves[rowIndex],
-                col = possibleMoves[colIndex];
+            let row = this.possibleMoves[rowIndex],
+                col = this.possibleMoves[colIndex];
                 
             this.socket.emit("player::move", {
                 "myMove" : [row, col],
@@ -173,7 +182,9 @@ class Board extends React.Component {
                 gameStatus
             });
         } else if (data.responseMove) {
-            console.log(data.myMove);
+            let boardState = data.boardState;
+            this.updateBoard(boardState);
+
         } else if (data.updateMove) {
             console.log(data.deltaState)
         }
@@ -182,6 +193,26 @@ class Board extends React.Component {
     // Indicates game end
     onGameEnd() {
 
+    }
+
+    updateBoard(newState) {
+        let moveArray = this.possibleMoveArray,
+            boardState = Object.assign({}, this.state.boardState);
+                
+        newState.forEach((row, rowIndex) => {
+            row.forEach((positionMove, colIndex) => {
+                if (positionMove != this.MOVE_TYPE._) {
+                    let firstIndex = moveArray[rowIndex],
+                        secondIndex = moveArray[colIndex],
+                        index = firstIndex + secondIndex;
+                    boardState[index] = positionMove;            
+                }
+            });
+        });
+        // Setting board state
+        this.setState({
+            boardState
+        });
     }
 
     render() {
