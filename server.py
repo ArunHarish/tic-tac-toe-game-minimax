@@ -276,7 +276,6 @@ CURRENT_DIR = os.path.dirname(os.path.realpath(__file__))
 STATIC_FOLDER = os.path.join(CURRENT_DIR, "static-src", "build", "static")
 
 app = Flask(__name__, static_folder=STATIC_FOLDER)
-app.config['SECRET_KEY'] = 'f30516fe-dee2-4a46-9535-72aedfb56ae8'
 socketio = SocketIO(app)
 
 def insert_game(element, player, playerType : PlayerType, gameType : GameType):
