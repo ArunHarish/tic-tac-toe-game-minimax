@@ -5,8 +5,7 @@ from enum import Enum
 from json import loads as dictise
 from math import inf
 from copy import deepcopy
-from time import sleep
-import os, signal
+import os
 
 # Player Types
 class PlayerType(Enum):
@@ -578,4 +577,4 @@ if __name__ == '__main__':
     # Build game tree
     print("\033[0;32mDone Building, starting server...\033[1;30m")    
     # Start the server
-    socketio.run(app)
+    socketio.run(app, host='0.0.0.0')
