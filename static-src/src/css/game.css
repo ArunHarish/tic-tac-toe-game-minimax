@@ -100,7 +100,7 @@ div.board div.row div.col div.move {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 0;
+    font-size: 200px;
     cursor: default;
 }
 
@@ -368,9 +368,9 @@ div.role-select div.tiles div.roles:hover {
     }
 }
 
-@media only screen and (max-width : 200px) {
+@media only screen and (max-width : 230px) {
     div.board-wrapper div.board-notification#visible {
-        font-size: 0.75em;
+        font-size: 0.5em;
     }
     div.menu div.title h1, div.gameDetails div.title h1, div.role-select div.title h1 {
         font-size: 1.1em;
