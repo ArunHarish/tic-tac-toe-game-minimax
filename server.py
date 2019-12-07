@@ -5,7 +5,7 @@ from enum import Enum
 from json import loads as dictise
 from math import inf
 from copy import deepcopy
-
+from time import sleep
 import os, signal
 
 # Player Types
@@ -427,7 +427,6 @@ def game_logic(sid):
     # Check game win state
     if gameEnded:
         socketio.emit("game::end", {
-            "playerWon" : playerWon,
             "whoWon" : move_json(whoWon)
         }, room=sid)
         disconnect(sid=sid)

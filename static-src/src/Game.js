@@ -4,11 +4,11 @@ import io from "socket.io-client";
 import axios from "axios";
 import {Link, HashRouter as Router, Route} from "react-router-dom";
 import {library} from "@fortawesome/fontawesome-svg-core";
-import {faUser, faRobot} from "@fortawesome/free-solid-svg-icons";
+import {faUser, faRobot, faRedoAlt} from "@fortawesome/free-solid-svg-icons";
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome";
 
 // Adding icons
-library.add(faUser, faRobot);
+library.add(faUser, faRobot, faRedoAlt);
 
 class BoardLoading extends React.Component {
     constructor(props) {
@@ -46,20 +46,82 @@ class BoardMove extends React.Component {
 
     render() {
         let value;
+        let roleClass;
         switch (this.state.move) {
             case this.MOVE_TYPE._:
                 return <></>;
             case this.MOVE_TYPE.O:
                 value = "O";
+                roleClass = "o";
             break;
             case this.MOVE_TYPE.X:
                 value = "X";
+                roleClass = "x";
             break;
         }
         return (
-            <div className="move">{value}</div>
+            <div className="move">
+                <div className={roleClass}>
+                    {value}
+                </div>
+            </div>
         )
     }
+}
+
+class BoardNotification extends React.Component {
+    constructor(props) {
+        super(props);
+
+        this.options = this.props.options;
+        this.state = {
+            won : this.props.wonState
+        };
+    }
+
+    refreshWindow() {
+        window.location.reload();
+    }
+
+    // On props change
+    static getDerivedStateFromProps(deltaProps, currentState) {
+        if (deltaProps.wonState != currentState.won) {
+            return {
+                won : deltaProps.wonState
+            }            
+        }
+
+        return null;
+    }
+
+    render() {
+        let notification;
+        let notificationClassName;
+
+        switch(this.state.won) {
+            case this.options.WON:
+                notification = "GAME WON";
+                notificationClassName = "visible";
+                break;
+            case this.options.LOST:
+                notification = "GAME LOST";
+                notificationClassName = "visible";
+                break;
+            case this.options.DREW:
+                notification = "GAME DRAWN";
+                notificationClassName = "visible";
+                break;
+        }
+        return (
+            <div id={notificationClassName} className="board-notification">
+                <h1>{notification}</h1>
+                <button className={notificationClassName} onClick={this.refreshWindow}>
+                    <FontAwesomeIcon icon={"redo-alt"}></FontAwesomeIcon>
+                </button>
+            </div>
+        )
+    }
+
 }
 
 class Board extends React.Component {
@@ -72,11 +134,19 @@ class Board extends React.Component {
             X : 0,
             O : 1
         };
-        // Enum PLAYER
+        // Enum Turns
         this.TURN = {
             OTHER : 0,
             THIS : 1
         }
+
+        // Enums
+        this.WON_STATE = {
+            NONE : -2,
+            LOST : -1,
+            DREW : 0,
+            WON : 1
+        };
 
         this.possibleMoves = {
             "f" : 0,
@@ -101,11 +171,8 @@ class Board extends React.Component {
             gameStatus : {
                 // defaults to no connection but sets to true if web-socket
                 // is connected
-                connected : false, 
-                won : {
-                    status : false,
-                    result : null
-                },
+                connected : false,
+                status : this.WON_STATE.NONE,
                 turn : null,
             }
         }
@@ -193,7 +260,24 @@ class Board extends React.Component {
 
     // Indicates game end
     onGameEnd(data) {
-        console.log(data);
+        // Copy the state
+        let gameStatus = Object.assign({}, this.state.gameStatus);
+        // Evaluate win state
+        if (data.whoWon === this.MOVE_TYPE._) {
+            // Means it is a draw
+            gameStatus.status = this.WON_STATE.DREW;
+        } else if (data.whoWon != this.playerType) {
+            // Then it is a lost game
+            gameStatus.status = this.WON_STATE.LOST;
+        } else {
+            // You Won
+            gameStatus.status = this.WON_STATE.WON;
+        }
+
+        this.setState({
+            gameStatus
+        });
+
     }
 
     updateBoard(newState) {
@@ -218,47 +302,51 @@ class Board extends React.Component {
 
     render() {
         return (
-            <div className="board">
-                <div className="row">
-                    <div className="col" data-location={"ff"} onClick={this.onUserMove}>
-                        <BoardMove options={this.MOVE_TYPE} 
-                            type={this.state.boardState.ff}></BoardMove>   
+            <div className="board-wrapper">
+                <BoardNotification options={this.WON_STATE} wonState={this.state.gameStatus.status}>
+                </BoardNotification>
+                <div className="board">
+                    <div className="row">
+                        <div className="col" data-location={"ff"} onClick={this.onUserMove}>
+                            <BoardMove options={this.MOVE_TYPE} 
+                                type={this.state.boardState.ff}></BoardMove>   
+                        </div>
+                        <div className="col middle" data-location={"fs"} onClick={this.onUserMove}>
+                            <BoardMove options={this.MOVE_TYPE} 
+                                type={this.state.boardState.fs}></BoardMove>
+                        </div>
+                        <div className="col" data-location={"ft"} onClick={this.onUserMove}>
+                            <BoardMove options={this.MOVE_TYPE} 
+                                type={this.state.boardState.ft}></BoardMove>
+                        </div>
                     </div>
-                    <div className="col middle" data-location={"fs"} onClick={this.onUserMove}>
-                        <BoardMove options={this.MOVE_TYPE} 
-                            type={this.state.boardState.fs}></BoardMove>
+                    <div className="row middle">
+                        <div className="col" data-location={"sf"} onClick={this.onUserMove}>
+                            <BoardMove options={this.MOVE_TYPE} 
+                                type={this.state.boardState.sf}></BoardMove>
+                        </div>
+                        <div className="col middle" data-location={"ss"} onClick={this.onUserMove}>
+                            <BoardMove options={this.MOVE_TYPE} 
+                                type={this.state.boardState.ss}></BoardMove>
+                        </div>
+                        <div className="col" data-location={"st"} onClick={this.onUserMove}>
+                            <BoardMove options={this.MOVE_TYPE} 
+                                type={this.state.boardState.st}></BoardMove>
+                        </div>
                     </div>
-                    <div className="col" data-location={"ft"} onClick={this.onUserMove}>
-                        <BoardMove options={this.MOVE_TYPE} 
-                            type={this.state.boardState.ft}></BoardMove>
-                    </div>
-                </div>
-                <div className="row middle">
-                    <div className="col" data-location={"sf"} onClick={this.onUserMove}>
-                        <BoardMove options={this.MOVE_TYPE} 
-                            type={this.state.boardState.sf}></BoardMove>
-                    </div>
-                    <div className="col middle" data-location={"ss"} onClick={this.onUserMove}>
-                        <BoardMove options={this.MOVE_TYPE} 
-                            type={this.state.boardState.ss}></BoardMove>
-                    </div>
-                    <div className="col" data-location={"st"} onClick={this.onUserMove}>
-                        <BoardMove options={this.MOVE_TYPE} 
-                            type={this.state.boardState.st}></BoardMove>
-                    </div>
-                </div>
-                <div className="row">
-                    <div className="col" data-location={"tf"} onClick={this.onUserMove}>
-                        <BoardMove options={this.MOVE_TYPE} 
-                            type={this.state.boardState.tf}></BoardMove>
-                    </div>
-                    <div className="col middle" data-location={"ts"} onClick={this.onUserMove}>
-                        <BoardMove options={this.MOVE_TYPE} 
-                            type={this.state.boardState.ts}></BoardMove>
-                    </div>
-                    <div className="col" data-location={"tt"} onClick={this.onUserMove}>
-                        <BoardMove options={this.MOVE_TYPE} 
-                            type={this.state.boardState.tt}></BoardMove>
+                    <div className="row">
+                        <div className="col" data-location={"tf"} onClick={this.onUserMove}>
+                            <BoardMove options={this.MOVE_TYPE} 
+                                type={this.state.boardState.tf}></BoardMove>
+                        </div>
+                        <div className="col middle" data-location={"ts"} onClick={this.onUserMove}>
+                            <BoardMove options={this.MOVE_TYPE} 
+                                type={this.state.boardState.ts}></BoardMove>
+                        </div>
+                        <div className="col" data-location={"tt"} onClick={this.onUserMove}>
+                            <BoardMove options={this.MOVE_TYPE} 
+                                type={this.state.boardState.tt}></BoardMove>
+                        </div>
                     </div>
                 </div>
             </div>

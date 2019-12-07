@@ -8,6 +8,62 @@ h1 {
     margin : 15px;
 }
 
+div.board-wrapper {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+div.board-wrapper div.board-notification {
+    width: 100%;
+    height: 0;
+    opacity : 0;
+    transition: height 500ms, opacity 1s;
+    text-align: center;
+    display: inline-flex;
+    font-size: 1em;
+    align-items: center;
+    justify-content: center;
+}
+
+div.board-wrapper div.board-notification button {
+    display : none;
+}
+
+div.board-wrapper div.board-notification#visible {
+    height : 40px;
+    opacity : 1;
+}
+
+div.board-wrapper div.board-notification#visible button {
+    display : block;
+    margin : 5px;
+    font-size: 1em;
+    background : none;
+    border : none;
+    outline : 0;
+}
+
+div.board-wrapper div.board-notification#visible button:hover {
+    animation: rotate 500ms cubic-bezier(0.075, 0.82, 0.165, 1);
+}
+
+@keyframes rotate {
+    from {
+        transform : rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+div.board-wrapper div.board-notification h1 {
+    margin : 0;
+}
+
 div.board {
     display : flex;
     width : 500px;
@@ -44,12 +100,39 @@ div.board div.row div.col div.move {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 200px;
+    font-size: 0;
     cursor: default;
 }
 
-div.board div.row div.col:not(.empty):hover {
-    background : #eee;
+div.board div.row div.col div.move div {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size : 0;
+    transition : font-size, 200ms;
+}
+
+div.board div.row div.col div.move div.x {
+    color : red;
+    animation : fontExpand 200ms;
+    animation-fill-mode: forwards;
+}
+
+div.board div.row div.col div.move div.o {
+    color : green;
+    animation : fontExpand 200ms;
+    animation-fill-mode: forwards;
+}
+
+@keyframes fontExpand {
+    from {
+        font-size : 0;
+    }
+    to {
+        font-size : inherit;
+    }
 }
 
 body {
@@ -60,6 +143,7 @@ div#root {
     position: absolute;
     width : 100%;
     height : 100%;
+    max-height : 1000px;
     top : 0;
     left : 0;
     display : flex;
@@ -248,29 +332,54 @@ div.role-select div.tiles div.roles:hover {
     div.menu div.options div {
         font-size : 1.4em;
     }
+    div.board div.row div.col div.move div.x,
+    div.board div.row div.col div.move div.o{
+        font-size : 18vh;
+    }
 }
 
-@media only screen and (max-height : 500px) {
+@media only screen and (max-height : 510px) {
     div.board {
         height : 75%;
         width : 75vh;
-    }
-    div.board div.row div.col div.move {
-        font-size : 24vh;
     }
 
     div#root div.gameDetails, div#root div.role-select {
         height : 100%;
     }
 
+    div.board-wrapper div.board-notification {
+        font-size : 1em;
+    }
+
 }
 
-@media only screen and (max-width : 500px) {
+@media only screen and (max-width : 510px) {
     div.board {
         width : 75%;
         height : 75vw;
     }
     div.board div.row div.col div.move {
         font-size : 24vw;
+    }
+    div.board div.row div.col div.move div.x,
+    div.board div.row div.col div.move div.o{
+        font-size : 18vw;
+    }
+}
+
+@media only screen and (max-width : 200px) {
+    div.board-wrapper div.board-notification#visible {
+        font-size: 0.75em;
+    }
+    div.menu div.title h1, div.gameDetails div.title h1, div.role-select div.title h1 {
+        font-size: 1.1em;
+    }
+    div.role-select {
+        width : 100%;
+    }
+    div.board div.row div.col div.move div.x,
+    div.board div.row div.col div.move div.o{
+        font-size : 10vw;
     }
 }
