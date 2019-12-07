@@ -49,6 +49,16 @@ class TicTacToeTreeNode(object):
         return "{}".format(value)
 
 class TicTacToeTree(object):    
+
+    @staticmethod
+    def generate_value(state):
+        return {
+            "state" : state,
+            "minimax" : 0,
+            "gameEnded" : False, # Since initially the board is empty
+            "whoWon" : None
+        }
+
     @staticmethod
     def initialise() -> TicTacToeTreeNode:
         returnSet = []
@@ -58,10 +68,7 @@ class TicTacToeTree(object):
                 set.append(PlayerType._)
             returnSet.append(set)
     
-        startState = {
-            "state" : returnSet,
-            "minmax" : 0
-        }
+        startState = TicTacToeTree.generate_value(returnSet)
         return TicTacToeTreeNode(startState)
     
     @staticmethod
@@ -69,7 +76,7 @@ class TicTacToeTree(object):
         if currentNode.getChildrenLength() is 0:
             return 0, None, depth
         
-        nodeValue = currentNode.getValue()["minmax"]
+        nodeValue = currentNode.getValue()["minimax"]
 
         if nodeValue is not 0:
             return nodeValue, currentNode, depth
@@ -83,7 +90,7 @@ class TicTacToeTree(object):
                 selectedNode = currentNode.getChild(index)
                 value, nextNode, terminalDepth = TicTacToeTree.minimax(selectedNode, depth + 1, \
                     False)
-                if value > maxValue:
+                if value >= maxValue:
                     maxValue = value
                     maxNode = selectedNode
             return maxValue, maxNode, depth
@@ -96,7 +103,7 @@ class TicTacToeTree(object):
             selectedNode = currentNode.getChild(index)
             value, nextNode, terminalDepth = TicTacToeTree.minimax(selectedNode, depth + 1, \
                 True)
-            if value < minValue:
+            if value <= minValue:
                 minValue = value
                 minNode = selectedNode
         return minValue, minNode, depth
@@ -148,6 +155,21 @@ class TicTacToeTree(object):
                 return PlayerType.X
             return PlayerType.O
         
+        def move_left(gameArray):
+            # Check whether there are any moves left
+            # to detect draw
+            # If draw return None else return _ player type
+            # indicating there are moves left
+
+            for rows in range(3):
+                currentRow = gameArray[rows]
+                for cols in range(3):
+                    currentMove = currentRow[cols]
+                    if currentMove is PlayerType._:
+                        return PlayerType._
+
+            return None
+
         def check_game_win(gameArray):
             playerTypes = [PlayerType.X, PlayerType.O]
             for player in playerTypes:
@@ -156,44 +178,50 @@ class TicTacToeTree(object):
                    cross_check(gameArray, player):
                    return player
             
-            return PlayerType._
+            return move_left(gameArray)
 
         def build_tree(currentTurn : PlayerType, \
             gameNode : TicTacToeTreeNode, depth : int) -> int:
             
-            gameArray = gameNode.getValue()["state"]
-
+            gameValue = gameNode.getValue()
+            gameArray = gameValue["state"]
+            
             for i in range(3):
                 for j in range(3):
                     if gameArray[i][j] is PlayerType._:
                         newArray = deepcopy(gameArray)
                         newArray[i][j] = currentTurn
                         # Node value
-                        nodeValue = {
-                            "state" : newArray,
-                            "minmax" : 0 # Initially assumes the state is unfilled
-                        }
+                        nodeValue = TicTacToeTree.generate_value(newArray)
                         # Creating new node
                         newNode = TicTacToeTreeNode(nodeValue)
                         gameNode.appendChild(newNode)
                         # Moving to the next level
-                        nodeValue["minmax"] = \
+                        nodeValue["minimax"] = \
                             build_tree(next_turn(currentTurn), newNode, \
                                     depth + 1)
 
             # Reaches here if all the places are tried 
             whoWon = check_game_win(gameArray)
+            # Assign the whoWon state
+            gameValue["whoWon"] = whoWon
             # X is maximiser
             if whoWon is PlayerType.X:
                 # If the maximiser has won then return
                 # a positive value
                 # subtracting depth from it
                 # this is to force the algorithm to choose the nearest win
+                # Set the winning flag to true
+                gameValue["gameEnded"] = True
                 return 10 - depth
             elif whoWon is PlayerType.O:
                 # If the minimiser has won then return
                 # a negative value
+                # Set the winning flag to true
+                gameValue["gameEnded"] = True
                 return -10 + depth
+            elif whoWon is None:
+                gameValue["gameEnded"] = True
             # If no one has won the game
             return 0
         
@@ -209,7 +237,6 @@ class TicTacToeTree(object):
 
         if turn is PlayerType.X:
             maximiser = True
-
         value, nextNode, nextDepth = TicTacToeTree.minimax(currentNode, \
             currentDepth, maximiser)
         return nextNode, nextDepth    
@@ -320,22 +347,6 @@ def set_sid(gameID, playerID, sessionID):
     sessionGameTable[sessionID] = gameID
     return True
 
-def temp_string(value):
-    string = "X"
-    if value is PlayerType.O:
-        string = "O"
-    elif value is PlayerType._:
-        string = "*"
-    return string
-
-def print_game(gameArray):
-    for rows in range(0, 3):
-        gameRow = gameArray[rows]
-        first = temp_string(gameRow[0])
-        second = temp_string(gameRow[1])
-        third = temp_string(gameRow[2])
-        print("{} | {} | {}".format(first, second, third))
-
 def change_turn(game):
     currentTurn = game["turn"]
     game["turn"] = Turn.OTHER if currentTurn is Turn.THIS else Turn.THIS
@@ -380,6 +391,12 @@ def set_next_move(game):
 
     return boardState
 
+def move_json(playerType : PlayerType):
+    if playerType is PlayerType.O:
+        return 1
+    elif playerType is PlayerType.X:
+        return 0
+    return -1
 
 def board_json(boardState):
     returnArray = []
@@ -387,14 +404,14 @@ def board_json(boardState):
         colsArray = []
         for cols in range(3):
             playerType = boardState[rows][cols] 
-            if playerType is PlayerType.O:
-                colsArray.append(1)
-            elif playerType is PlayerType.X:
-                colsArray.append(0)
-            else:
-                colsArray.append(-1)
+            parsedValue = move_json(playerType)
+            colsArray.append(parsedValue)
         returnArray.append(colsArray)
     return returnArray
+
+def game_won(game):
+    nodeValue = game["board"]["node"].getValue()
+    return nodeValue["gameEnded"], nodeValue["whoWon"]
 
 def game_logic(sid):
     if not sid in sessionGameTable:
@@ -403,8 +420,19 @@ def game_logic(sid):
     gid = sessionGameTable[sid]
     game = gameTable[gid]
     currentTurn = game["turn"]
+    gameEnded, whoWon = game_won(game)
+    
+    # Check whether it is a draw
+    playerWon = True if gameEnded and whoWon is not None else False
+    # Check game win state
+    if gameEnded:
+        socketio.emit("game::end", {
+            "playerWon" : playerWon,
+            "whoWon" : move_json(whoWon)
+        }, room=sid)
+        disconnect(sid=sid)
     # If it is AI's turn make decision and broadcast
-    if currentTurn is Turn.THIS: 
+    elif currentTurn is Turn.THIS: 
         boardState = set_next_move(game)
         boardJSON = board_json(boardState)
         # Emit the move

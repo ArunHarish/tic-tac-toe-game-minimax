@@ -192,8 +192,8 @@ class Board extends React.Component {
     }
 
     // Indicates game end
-    onGameEnd() {
-
+    onGameEnd(data) {
+        console.log(data);
     }
 
     updateBoard(newState) {
