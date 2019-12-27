@@ -48,7 +48,7 @@ class BoardMove extends React.Component {
         let value;
         let roleClass;
         switch (this.state.move) {
-            case this.MOVE_TYPE._:
+            default:
                 return <></>;
             case this.MOVE_TYPE.O:
                 value = "O";
@@ -85,7 +85,7 @@ class BoardNotification extends React.Component {
 
     // On props change
     static getDerivedStateFromProps(deltaProps, currentState) {
-        if (deltaProps.wonState != currentState.won) {
+        if (deltaProps.wonState !==currentState.won) {
             return {
                 won : deltaProps.wonState
             }            
@@ -107,7 +107,7 @@ class BoardNotification extends React.Component {
                 notification = "GAME LOST";
                 notificationClassName = "visible";
                 break;
-            case this.options.DREW:
+            default:
                 notification = "GAME DRAWN";
                 notificationClassName = "visible";
                 break;
@@ -266,7 +266,7 @@ class Board extends React.Component {
         if (data.whoWon === this.MOVE_TYPE._) {
             // Means it is a draw
             gameStatus.status = this.WON_STATE.DREW;
-        } else if (data.whoWon != this.playerType) {
+        } else if (data.whoWon !==this.playerType) {
             // Then it is a lost game
             gameStatus.status = this.WON_STATE.LOST;
         } else {
@@ -286,7 +286,7 @@ class Board extends React.Component {
                 
         newState.forEach((row, rowIndex) => {
             row.forEach((positionMove, colIndex) => {
-                if (positionMove != this.MOVE_TYPE._) {
+                if (positionMove !==this.MOVE_TYPE._) {
                     let firstIndex = moveArray[rowIndex],
                         secondIndex = moveArray[colIndex],
                         index = firstIndex + secondIndex;
@@ -419,10 +419,71 @@ class GameOptionMenu extends React.Component {
 }
 
 class FetchName extends React.Component {
+    constructor(props) {
+        super(props);
+        this.input = React.createRef();
+        // Binding
+        this.onFocus = this.onFocus.bind(this);
+        this.onBlur = this.onBlur.bind(this);
+        this.checkContent = this.checkContent.bind(this);
+        this.setInputFocus = this.setInputFocus.bind(this);
+        this.onSuccess = this.onSuccess.bind(this);
+        // State
+        this.state = {
+            onActive : false,
+            hasContent: false
+        };
+    }
+
+    setInputFocus() {
+        // Trigger click event
+        this.input.current.focus();
+    }
+
+    checkContent() {
+        let value = this.input.current.value;
+        this.setState({
+            hasContent : value.length > 0
+        });
+    }
+
+    onFocus() {
+        this.setState({
+            onActive : true
+        });
+    }
+
+    onBlur() {
+        if (!this.input.current.value) {
+            this.setState({
+                onActive : false
+            })
+        }
+        
+    }
+
+    onSuccess() {
+
+    }
+
     render() {
         return (
-            <div>
-                Enter Your Name Here
+            <div className="about-you-wrapper">
+                <div className="name-dialog-title">
+                    <h1>DETAILS</h1>
+                </div>
+                <div className="name-dialog-wrapper">
+                    <div className="name-dialog" onClick={this.setInputFocus} data-on-focus={this.state.onActive}>
+                        <div className="name-dialog-input">
+                            <input type="text" ref={this.input} onBlur={this.onBlur} 
+                                    onFocus={this.onFocus} onChange={this.checkContent} />
+                        </div>
+                        <div data-on-focus={this.state.onActive} className="name-dialog-label"></div>
+                    </div>
+                    <div className="name-dialog-submit" onClick={this.onSuccess} data-on-success={this.state.hasContent} >
+                        Let's Play!
+                    </div>
+                </div>
             </div>
         )
     }
@@ -480,10 +541,10 @@ class RoleSelect extends React.Component {
 
     onSelect(event) {
         let target = event.currentTarget;
-        if (this.x.current == target) {
+        if (this.x.current === target) {
             // For X player type
             this.props.onSelect(this.props.options.X);
-        } else if (this.o.current == target) {
+        } else if (this.o.current === target) {
             // For O player type
             this.props.onSelect(this.props.options.O);
         }
@@ -553,7 +614,7 @@ class Game extends React.Component {
     render() {
         let content;
         switch (this.state.SHOW_STATE) {
-            case this.showStates.LOADING:
+            default:
                 content = <BoardLoading></BoardLoading>;
                 break;
             case this.showStates.ROLESELECT:
