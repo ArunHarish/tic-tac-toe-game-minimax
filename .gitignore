@@ -1,2 +1,6 @@
 web-env
 Dockerfile
+wsgi.py
+.vscode
+*.ini
+__pycache__
