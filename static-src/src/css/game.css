@@ -100,7 +100,7 @@ div.board div.row div.col div.move {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 200px;
+    font-size: 6rem;
     cursor: default;
 }
 
@@ -208,7 +208,7 @@ div.menu div.options div {
     transition : background 200ms, font-size 200ms;
 }
 
-div.menu div.options div:hover {
+div.menu div.options div:not(.disabled):hover {
     background: #ddd;
     font-size : 2.2em;
 }
@@ -259,11 +259,11 @@ div.gameDetails div.options div div.label {
     transition : font-size 200ms;
 }
 
-div.gameDetails div.options div:hover div.label {
+div.gameDetails div.options div:not(.disabled):hover div.label {
     font-size: 2em;
 }
 
-div.gameDetails div.options div:hover div.icon {
+div.gameDetails div.options div:not(.disabled)hover div.icon {
     font-size: 4em;
 }
 

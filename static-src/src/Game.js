@@ -10,6 +10,29 @@ import {FontAwesomeIcon} from "@fortawesome/react-fontawesome";
 // Adding icons
 library.add(faUser, faRobot, faRedoAlt);
 
+const WINSTATE = {
+    NONE : -2,
+    LOST : -1,
+    DRAWN : 0,
+    WON : 1
+};
+
+const TURNSTATE = {
+    OTHER : 0,
+    THIS : 1
+}
+
+const MOVETYPE = {
+    _ : -1,
+    X : 0,
+    O : 1
+};
+
+const PLAYERTYPE = {
+    X : 0,
+    O : 1
+}
+
 class BoardLoading extends React.Component {
     constructor(props) {
         super(props);
@@ -72,7 +95,6 @@ class BoardMove extends React.Component {
 class BoardNotification extends React.Component {
     constructor(props) {
         super(props);
-
         this.options = this.props.options;
         this.state = {
             won : this.props.wonState
@@ -85,7 +107,7 @@ class BoardNotification extends React.Component {
 
     // On props change
     static getDerivedStateFromProps(deltaProps, currentState) {
-        if (deltaProps.wonState !==currentState.won) {
+        if (deltaProps.wonState !== currentState.won) {
             return {
                 won : deltaProps.wonState
             }            
@@ -107,14 +129,16 @@ class BoardNotification extends React.Component {
                 notification = "GAME LOST";
                 notificationClassName = "visible";
                 break;
-            default:
+            case this.options.DRAWN:
                 notification = "GAME DRAWN";
                 notificationClassName = "visible";
+                break;
+            default:
                 break;
         }
         return (
             <div id={notificationClassName} className="board-notification">
-                <h1>{notification}</h1>
+                <h1>{ notification }</h1>
                 <button className={notificationClassName} onClick={this.refreshWindow}>
                     <FontAwesomeIcon icon={"redo-alt"}></FontAwesomeIcon>
                 </button>
@@ -124,29 +148,32 @@ class BoardNotification extends React.Component {
 
 }
 
+class TurnNotification extends React.Component {
+    render() {
+        const { turn, status } = this.props.gameState;
+        if (turn === null || status !== WINSTATE.NONE) {
+            return <div></div>;
+        }
+
+        const notifications = ["Waiting for their move...", "Your Turn"];        
+
+        return (
+            <div>{ notifications[turn] }</div>
+        );
+    }
+}
+
 class Board extends React.Component {
     constructor(props) {
         super(props);
         // Properties
         // Enum MOVE
-        this.MOVE_TYPE = {
-            _ : -1,
-            X : 0,
-            O : 1
-        };
+        this.MOVE_TYPE = MOVETYPE;
         // Enum Turns
-        this.TURN = {
-            OTHER : 0,
-            THIS : 1
-        }
+        this.TURN = TURNSTATE;
 
         // Enums
-        this.WON_STATE = {
-            NONE : -2,
-            LOST : -1,
-            DREW : 0,
-            WON : 1
-        };
+        this.WON_STATE = WINSTATE;
 
         this.possibleMoves = {
             "f" : 0,
@@ -205,19 +232,30 @@ class Board extends React.Component {
             
         } catch (error) {
             // Things to do if there are issues while fetching details
+            return ;
+        } finally {
+
+            // Start game process by invoking socket connection with credentials
+            this.socket = io();
+            this.socket.emit("request::ai", {            
+                game : this.gid,
+                player : this.pid,
+                playerType : this.playerType
+            });
             
+            // Here set the state for the turn
+            // If the player type is X then it is their first move
+            if (this.playerType === PLAYERTYPE.O) {
+                let gameState = Object.assign({}, this.state);
+                let { gameStatus } = gameState;
+                gameStatus.turn = TURNSTATE.OTHER;
+                this.setState(gameState);
+            }
+            // Listeners
+            this.socket.on("player::move", this.onGameMove);
+            this.socket.on("game::end", this.onGameEnd);
+        
         }
-        // Start game process by invoking socket connection with credentials
-        this.socket = io();
-        this.socket.emit("request::ai", {            
-            game : this.gid,
-            player : this.pid,
-            playerType : this.playerType
-        });
-
-        this.socket.on("player::move", this.onGameMove);
-        this.socket.on("game::end", this.onGameEnd);
-
     }
 
     onUserMove(event) {
@@ -232,12 +270,15 @@ class Board extends React.Component {
             // Logic to register user move
             let row = this.possibleMoves[rowIndex],
                 col = this.possibleMoves[colIndex];
-                
+            let nextState = Object.assign({}, this.state);
             this.socket.emit("player::move", {
                 "myMove" : [row, col],
                 "pid" : this.pid,
                 "gid" : this.gid
             });
+            // Set the game status to other
+            nextState.gameStatus.turn = this.TURN.OTHER;
+            this.setState(nextState);
         }
     }
 
@@ -265,8 +306,8 @@ class Board extends React.Component {
         // Evaluate win state
         if (data.whoWon === this.MOVE_TYPE._) {
             // Means it is a draw
-            gameStatus.status = this.WON_STATE.DREW;
-        } else if (data.whoWon !==this.playerType) {
+            gameStatus.status = this.WON_STATE.DRAWN;
+        } else if (data.whoWon !== this.playerType) {
             // Then it is a lost game
             gameStatus.status = this.WON_STATE.LOST;
         } else {
@@ -303,8 +344,10 @@ class Board extends React.Component {
     render() {
         return (
             <div className="board-wrapper">
-                <BoardNotification options={this.WON_STATE} wonState={this.state.gameStatus.status}>
+                <BoardNotification options={this.WON_STATE}
+                        wonState={this.state.gameStatus.status}>
                 </BoardNotification>
+                <TurnNotification gameState={this.state.gameStatus}></TurnNotification>
                 <div className="board">
                     <div className="row">
                         <div className="col" data-location={"ff"} onClick={this.onUserMove}>
@@ -358,41 +401,38 @@ class GameOption extends React.Component {
     constructor(props) {
         super(props);
         // Bindings
-        this.humanGame = this.humanGame.bind(this);
-        this.aiGame = this.aiGame.bind(this);
         // Information about type
         this.information = {
             "ai" : {
                 label : "ROBO",
-                icon : "robot",
-                handle : this.aiGame
+                icon : "robot"
             },
             "human" : {
                 label : "HUMAN",
-                icon : "user",
-                handle : this.humanGame
+                icon : "user"
             }
         }
     }
 
-    humanGame() {
-        
-    }
-
-    aiGame() {
-        
-    }
-
     render() {
-        const type = this.props.type;
+        const { type, disabled } = this.props;
+        const wrapperClass = [type];
+        let subLabel = null;
+
+        if (disabled) {
+            subLabel = <><br /> <div>(Coming Soon)</div></>;
+            wrapperClass.push("disabled");
+        }
+
         return (
-            <div className={type} onClick={this.information[type].handle}>
+            <div className={wrapperClass.join(" ")}>
                 <Link to={`new/${type}`}>
                     <div className="icon">
                         <FontAwesomeIcon icon={this.information[type].icon}></FontAwesomeIcon>
                     </div>
                     <div className="label">
                         {this.information[type].label}
+                        { subLabel }
                     </div>
                     </Link>
             </div>
@@ -409,7 +449,7 @@ class GameOptionMenu extends React.Component {
                 </div>
                 <div className="options">
                     <Router>
-                        <GameOption type="human"></GameOption>
+                        <GameOption type="human" disabled></GameOption>
                         <GameOption type="ai"></GameOption>
                     </Router>
                 </div>
@@ -431,7 +471,8 @@ class FetchName extends React.Component {
         // State
         this.state = {
             onActive : false,
-            hasContent: false
+            hasContent: false,
+            onSubmit: false
         };
     }
 
@@ -463,6 +504,18 @@ class FetchName extends React.Component {
     }
 
     onSuccess() {
+        let name = this.input.current;
+        if (!name)
+            return ;
+        
+        let value = name.value;
+
+        if (value) {
+            this.setState({
+                onSubmit : true
+            });
+            // Set the context containing the name and game id
+        }
 
     }
 
@@ -475,7 +528,7 @@ class FetchName extends React.Component {
                 <div className="name-dialog-wrapper">
                     <div className="name-dialog" onClick={this.setInputFocus} data-on-focus={this.state.onActive}>
                         <div className="name-dialog-input">
-                            <input type="text" ref={this.input} onBlur={this.onBlur} 
+                            <input disabled={this.state.onSubmit} type="text" ref={this.input} onBlur={this.onBlur} 
                                     onFocus={this.onFocus} onChange={this.checkContent} />
                         </div>
                         <div data-on-focus={this.state.onActive} className="name-dialog-label"></div>
@@ -489,30 +542,38 @@ class FetchName extends React.Component {
     }
 }
 
+class GameTitle extends React.Component {
+    render() {
+        return (
+            <div className="menu">
+                <div className="title">
+                    <h1>Tic Tac Toe</h1>
+                </div>
+                <div className="options">
+                    <Router>
+                        <Link to="new">
+                            <div className="new">
+                                NEW GAME
+                            </div>
+                        </Link>
+                        <div className="join disabled">
+                            <strike>JOIN GAME</strike>
+                        </div>
+                    </Router>
+                </div>
+            </div>
+        );
+    }
+}
+
 class MainMenu extends React.Component {
     render() {
         return (
             <Router>
+                <Route exact path="/join/:gid">
+                </Route>
                 <Route exact path="/">
-                    <div className="menu">
-                        <div className="title">
-                            <h1>Tic Tac Toe</h1>
-                        </div>
-                        <div className="options">
-                            <Router>
-                                <Link to="new">
-                                    <div className="new">
-                                        NEW GAME
-                                    </div>
-                                </Link>
-                                <Link to="/join">
-                                    <div className="join">
-                                        JOIN GAME
-                                    </div>
-                                </Link>
-                            </Router>
-                        </div>
-                    </div>
+                    <GameTitle></GameTitle>
                 </Route>
                 <Route exact path="/new">
                     <GameOptionMenu></GameOptionMenu>   
@@ -578,10 +639,7 @@ class Game extends React.Component {
             SHOW_STATE : this.showStates.LOADING,
         };
         // Player type enum
-        this.PLAYER_TYPE = {
-            X : 0,
-            O : 1
-        };
+        this.PLAYER_TYPE = PLAYERTYPE;
         this.playerType = null;
         // Bindings
         this.onRoleSelect = this.onRoleSelect.bind(this);
