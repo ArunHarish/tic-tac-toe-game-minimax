@@ -1,4 +1,4 @@
-# tic-tac-toe-game
+# tic-tac-toe-game-minimax
 * This is an implementation to showcase minimax algorithm using its classic application on tic tac toe (Noughts and Crosses) game. 
 
 * The algorithm works by minimising the possible loss caused by the opponent, whose goal is to maximise the opportunity to win the game.
