@@ -72,12 +72,12 @@ class TicTacToeTree(object):
     
     @staticmethod
     def minimax(currentNode : TicTacToeTreeNode, depth : int, maximiser: bool):
-        if currentNode.getChildrenLength() is 0:
+        if currentNode.getChildrenLength() == 0:
             return 0, None, depth
         
         nodeValue = currentNode.getValue()["minimax"]
 
-        if nodeValue is not 0:
+        if nodeValue != 0:
             return nodeValue, currentNode, depth
         
         selectedNode = currentNode.getChild(0)
@@ -478,9 +478,9 @@ def game_ai():
         gameID = uuid4()
         playerID = uuid4()
         playerType = data["playerType"]
-        assert(playerType is 0 or playerType is 1)
+        assert(playerType == 0 or playerType == 1)
         # Convert the player type to game enum
-        gamePlayerType = PlayerType.X if playerType is 0 else PlayerType.O
+        gamePlayerType = PlayerType.X if playerType == 0 else PlayerType.O
         # Create a new game into table
         insert_game(gameID, playerID, gamePlayerType, GameType.AI)
     except AssertionError:
